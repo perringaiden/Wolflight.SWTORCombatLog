@@ -1,0 +1,8 @@
+Wolflight.SWTORCombatLog
+======================================
+
+This project is an initial rendering of a combat log parser, for the purpose of presenting the combat log details from Star Wars: The Old Republic (Patch 1.2 onwards) into a format that can be used by any .NET 4.0 application.
+
+Wolflight.SWTORCombatLog is a .NET 4.0 project (see /SWTORCombatLog) that provides a LogParser class containing shared methods to parse an initialised System.IO.StreamReader object, or individual lines if sourced from another location.  Each line will be converted into a LogEntry object for easy consumption by other applications.
+
+The Wolflight.SWTORCombatLogDisplay is a .NET 4.0 WPF project (see /SWTORCombatLogDisplay) provided for illustration purposes.  It is capable of reading a SWTOR combat log text file and presenting details from each entry on a data grid.  This display project is rough and not intended as a normal UI for reading the log.
