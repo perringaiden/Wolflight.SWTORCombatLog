@@ -1,0 +1,32 @@
+﻿<Window x:Class="MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:custom="clr-namespace:WolfLight.SWTORCombatLogDisplay"
+    Title="MainWindow" Height="406" Width="717">
+    <Window.CommandBindings>
+        <CommandBinding 
+            Command="{x:Static custom:MainWindow.ParseLog}" 
+            Executed="ParseLog_Execute" 
+            CanExecute="CanAlwaysExecute" />
+    </Window.CommandBindings>
+    <DockPanel>
+        <Button Name="btnGo" Command="{x:Static custom:MainWindow.ParseLog}" DockPanel.Dock="Top">
+            Click Me!
+        </Button>
+        <DataGrid Name="dgEntries" Margin="0,0,0,0" ItemsSource="{Binding}"  AreRowDetailsFrozen="True" AlternatingRowBackground="LightGray" AutoGenerateColumns="false">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Timestamp" Binding="{Binding Path=Timestamp}"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding Path=Source.DisplayName}"/>
+                <DataGridTextColumn Header="Source ID" Binding="{Binding Path=Source.ID}"/>
+                <DataGridTextColumn Header="Target" Binding="{Binding Path=Target.DisplayName}"/>
+                <DataGridTextColumn Header="Target ID" Binding="{Binding Path=Target.ID}"/>
+                <DataGridTextColumn Header="Ability" Binding="{Binding Path=Ability.DisplayName}"/>
+                <DataGridTextColumn Header="Action" Binding="{Binding Path=Action.DisplayName}"/>
+                <DataGridTextColumn Header="Affected Element" Binding="{Binding Path=AffectedElement.DisplayName}"/>
+                <DataGridTextColumn Header="Value" Binding="{Binding Path=Value.Amount}"/>
+                <DataGridTextColumn Header="Value Type" Binding="{Binding Path=Value.ValueType.DisplayName}"/>
+                <DataGridTextColumn Header="Threat Generated" Binding="{Binding Path=ThreatGain}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>
