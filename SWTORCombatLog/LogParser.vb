@@ -362,14 +362,12 @@
                 Dim isCrit As Boolean = False
 
 
-                If aText(endValueIndex) = "*"c Then
+                If aText(endValueIndex - 1) = "*"c Then
                     gotAmount = Integer.TryParse(aText.Substring(0, endValueIndex - 1), amount)
                     isCrit = True
                 Else
                     gotAmount = Integer.TryParse(aText.Substring(0, endValueIndex), amount)
                 End If
-
-
 
                 If gotAmount Then
                     ident = ReadIdentifierElement(aText.Substring(endValueIndex + 1, aText.Length - endValueIndex - 1))

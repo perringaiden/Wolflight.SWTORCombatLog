@@ -25,6 +25,7 @@
                 <DataGridTextColumn Header="Affected Element" Binding="{Binding Path=AffectedElement.DisplayName}"/>
                 <DataGridTextColumn Header="Value" Binding="{Binding Path=Value.Amount}"/>
                 <DataGridTextColumn Header="Value Type" Binding="{Binding Path=Value.ValueType.DisplayName}"/>
+                <DataGridTextColumn Header="Critical" Binding="{Binding Path=Value.ValueType.Critical}"/>
                 <DataGridTextColumn Header="Threat Generated" Binding="{Binding Path=ThreatGain}"/>
             </DataGrid.Columns>
         </DataGrid>
