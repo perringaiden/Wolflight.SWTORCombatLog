@@ -1,4 +1,15 @@
-﻿Public Class LogParser
+﻿''' <summary>
+''' Name: Wolflight.SWTORCombat.LogParser
+''' Author: perringaiden
+''' E-mail: perrin@techie.com
+''' Master Repository: https://github.com/perringaiden/Wolflight.SWTORCombatLog
+''' Description:  The Log Parser is a static combat log entry parser.  It has three main methods of parsing, either 
+''' by supplying a single line (<see cref="LogParser.GetEntryFromLine"/>), by providing a <see cref="System.IO.StreamReader"/> 
+''' and a <see cref="List(Of Wolflight.SWTORCombatLog.LogEntry)"/> for population (<see cref="LogParser.ParseStream"/>), or 
+''' by supplying a <see cref="System.IO.StreamReader"/> to receive a <see cref="List(Of Wolflight.SWTORCombatLog.LogEntry)"/>
+''' (<see cref="LogParser.ParseStreamToList"/>).
+''' </summary>
+Public Class LogParser
 
     Private Const CG_OPENELEMENT As Char = "["c
     Private Const CG_CLOSEELEMENT As Char = "]"c
@@ -14,7 +25,23 @@
     '[03/01/2012 14:23:52] [Elite Tastybobble {846623953387520}] [@Idrurrez] [Ranged Attack {813449625993216}] [ApplyEffect {836045448945477}: Damage {836045448945501}] (261 energy {836045448940874}) <261>
     '[03/01/2012 14:23:52] [@Idrurrez] [Elite Tastybobble {846623953387520}] [Master Strike {812139660967936}] [ApplyEffect {836045448945477}: Damage {836045448945501}] (874* energy {836045448940874}) <874>
 
+    ' Prevent instancing
+    Private Sub New()
+        '
+    End Sub
 
+    Shared Sub New()
+        '
+    End Sub
+
+#Region "Stream Reading"
+
+    ''' <summary>
+    ''' Reads the combat log entries from a stream of text, and returns a <see cref="List(Of Wolflight.SWTORCombatLog.LogEntry)"/>
+    ''' with the parsed combat log entries.
+    ''' </summary>
+    ''' <param name="aStreamReader">The <see cref="System.IO.StreamReader"/> to read from.</param>
+    ''' <returns>A <see cref="List(Of  Wolflight.SWTORCombatLog.LogEntry)"/> containing the parsed combat log entries.</returns>
     Public Shared Function ParseStreamToList(ByVal aStreamReader As System.IO.StreamReader) As List(Of LogEntry)
         Dim rc As New List(Of LogEntry)
 
@@ -24,6 +51,13 @@
         Return rc
     End Function
 
+
+    ''' <summary>
+    ''' Reads the combat log entries from a stream of text, and populates a <see cref="List(Of Wolflight.SWTORCombatLog.LogEntry)"/>
+    ''' with the parsed combat log entries.
+    ''' </summary>
+    ''' <param name="aStreamReader">The <see cref="System.IO.StreamReader"/> to read from.</param>
+    ''' <param name="aList">The <see cref="List(Of  Wolflight.SWTORCombatLog.LogEntry)"/> to populate.</param>    
     Public Shared Sub ParseStream(ByVal aStreamReader As System.IO.StreamReader, ByVal aList As List(Of LogEntry))
         If aList IsNot Nothing Then
             Do While aStreamReader.EndOfStream = False
@@ -46,248 +80,219 @@
         End If
     End Sub
 
-
+#End Region
 
 #Region "Line Reading"
 
+    ''' <summary>
+    ''' Reads the <see cref="WolfLight.SWTORCombatLog.LogEntry"/> from a single line of a combat log.
+    ''' </summary>
+    ''' <param name="aLine">The line to parse.</param>
+    ''' <returns>A <see cref="WolfLight.SWTORCombatLog.LogEntry"/> if the line could be parsed, otherwise <see langword="Nothing"/>.</returns>    
     Public Shared Function GetEntryFromLine(ByVal aLine As String) As LogEntry
-        Try
-            Dim rc As LogEntry = New LogEntry
-            Dim curIdx As Integer = 0
-            Dim elemString As String = Nothing
+        Dim rc As LogEntry = New LogEntry
+        Dim matches As System.Text.RegularExpressions.MatchCollection
 
 
-            ' Read the date/timestamp
-            elemString = GetNextElementString(aLine, curIdx)
+        matches = GetElements(aLine)
 
-            If String.IsNullOrEmpty(elemString) = False Then
-                Dim timestamp As DateTime? = Nothing
+        If matches.Count >= 6 Then
+            Dim ident As Identifier?
 
-                timestamp = ReadDateElement(elemString)
+            ' First Element - DateTime
+            Dim timestamp As DateTime? = ReadDateElement(matches.Item(0).Value)
 
-                If timestamp.HasValue Then
-                    rc.Timestamp = timestamp.Value
-                End If
+
+            If timestamp.HasValue Then
+                rc.Timestamp = timestamp.Value
+            End If
+
+            ' Second Element - Source
+            ident = ReadIdentifierElement(matches.Item(1).Value)
+
+            If ident.HasValue Then
+                rc.Source = ident.Value
+                ident = Nothing
             Else
-                ' Couldn't retrieve the date which is always present.
+                ' The source must be specified
                 Return Nothing
             End If
 
-            ' Read the Source
-            elemString = GetNextElementString(aLine, curIdx)
+            ' Third Element - Target
+            ident = ReadIdentifierElement(matches.Item(2).Value)
 
-            If String.IsNullOrEmpty(elemString) = False Then
-                Dim source As Identifier? = Nothing
-
-                source = ReadIdentifierElement(elemString)
-
-                If source.HasValue Then
-                    rc.Source = source.Value
-                Else
-                    ' The source must be specified
-                    Return Nothing
-                End If
+            If ident.HasValue Then
+                rc.Target = ident.Value
+                ident = Nothing
+            Else
+                ' The target must be specified
+                Return Nothing
             End If
 
-            ' Read the Target
-            elemString = GetNextElementString(aLine, curIdx)
+            ' Fourth Element - Ability
+            ident = ReadIdentifierElement(matches.Item(3).Value)
 
-            If String.IsNullOrEmpty(elemString) = False Then
-                Dim target As Identifier? = Nothing
-
-                target = ReadIdentifierElement(elemString)
-
-                If target.HasValue Then
-                    rc.Target = target.Value
-                Else
-                    ' The target must be specified
-                    Return Nothing
-                End If
+            If ident.HasValue Then
+                rc.Ability = ident.Value
+                ident = Nothing
             End If
 
-            ' Read the Ability
-            elemString = GetNextElementString(aLine, curIdx)
+            ' Fifth Element - Action and Effect (Muuulti-ident)
+            Dim action As Identifier? = Nothing
+            Dim affected As Identifier? = Nothing
 
-            If String.IsNullOrEmpty(elemString) = False Then
-                Dim ability As Identifier? = Nothing
-
-                ability = ReadIdentifierElement(elemString)
-
-                ' The ability can be nothing.
-                If ability.HasValue Then
-                    rc.Ability = ability.Value
-                End If
-            End If
-
-            ' Read the action and affected element
-            elemString = GetNextElementString(aLine, curIdx)
-
-            If String.IsNullOrEmpty(elemString) = False Then
-                Dim action As Identifier? = Nothing
-                Dim affected As Identifier? = Nothing
-
-                Dim parts() As String = elemString.Split(":"c)
+            Dim parts() As String = matches.Item(4).Value.Split(":"c)
 
 
-                If parts.GetLength(0) >= 2 Then
-                    action = ReadIdentifierElement(parts(0))
-                    affected = ReadIdentifierElement(parts(1))
+            If parts.GetLength(0) >= 2 Then
+                action = ReadIdentifierElement(parts(0))
+                affected = ReadIdentifierElement(parts(1))
 
-                    If action.HasValue AndAlso affected.HasValue Then
-                        rc.Action = action.Value
-                        rc.AffectedElement = affected.Value
-                    Else
-                        ' There wasn't an action and affected element.
-                        Return Nothing
-                    End If
+                If action.HasValue AndAlso affected.HasValue Then
+                    rc.Action = action.Value
+                    rc.AffectedElement = affected.Value
                 Else
                     ' There wasn't an action and affected element.
                     Return Nothing
                 End If
+            Else
+                ' There wasn't an action and affected element.
+                Return Nothing
             End If
 
-            ' Read the action and affected element
-            elemString = GetNextValueString(aLine, curIdx)
-
-            If String.IsNullOrEmpty(elemString) = False Then
-                Dim data As ValueData? = Nothing
+            ' Sixth Element
+            Dim value As ValueData?
 
 
-                data = ReadValueData(elemString)
+            value = ReadValueData(matches.Item(5).Value)
 
-                If data.HasValue Then
-                    rc.Value = data.Value
+            If value.HasValue Then
+                rc.Value = value.Value
+                value = Nothing
+            End If
+
+            ' Seventh Element - Threat (Optional)
+            If matches.Count >= 7 Then
+                Dim threat As Integer?
+
+
+                threat = ReadThreatData(matches.Item(6).Value)
+
+                If threat.HasValue Then
+                    rc.ThreatGain = threat.Value
+                    threat = Nothing
                 End If
             End If
 
+        End If
 
-            ' Read the action and affected element
-            elemString = GetNextThreatString(aLine, curIdx)
-
-            If String.IsNullOrEmpty(elemString) = False Then
-                Dim threatvalue As Integer = 0
-
-
-                If Integer.TryParse(elemString, threatvalue) Then
-                    rc.ThreatGain = threatvalue
-                End If
-            End If
-
-            Return rc
-
-        Catch ex As Exception
-            Trace.WriteLine("Exception reading line: " & aLine & Environment.NewLine & "Exception: " & ex.ToString)
-
-            Return Nothing
-        End Try
-
+        Return rc
     End Function
 
 #End Region
 
 #Region "String Reading"
 
+    Private Shared Function GetElements(ByVal aString As String) As System.Text.RegularExpressions.MatchCollection
+        Dim rg As System.Text.RegularExpressions.Regex
 
-    Private Shared Function GetNextElementString( _
-            ByVal aLine As String, _
-            ByRef aCurrentIndex As Integer _
-        ) As String
 
-        Return GetNextString(CG_OPENELEMENT, CG_CLOSEELEMENT, aLine, aCurrentIndex)
+        rg = New System.Text.RegularExpressions.Regex("[\[\(\<].*?[\]\)\>]")
+
+        Return rg.Matches(aString)
     End Function
-
-
-    Private Shared Function GetNextValueString( _
-            ByVal aLine As String, _
-            ByRef aCurrentIndex As Integer _
-        ) As String
-
-        Return GetNextString(CG_OPENVALUE, CG_CLOSEVALUE, aLine, aCurrentIndex)
-    End Function
-
-
-    Private Shared Function GetNextThreatString( _
-        ByVal aLine As String, _
-        ByRef aCurrentIndex As Integer _
-    ) As String
-
-        Return GetNextString(CG_OPENTHREAT, CG_CLOSETHREAT, aLine, aCurrentIndex)
-    End Function
-
-
-    Private Shared Function GetNextString( _
-            ByVal aOpenCharacter As Char, _
-            ByVal aCloseCharacter As Char, _
-            ByVal aLine As String, _
-            ByRef aCurrentIndex As Integer _
-        ) As String
-
-        Try
-            Dim nextStartIndex As Integer = -1
-            Dim nextEndIndex As Integer = -1
-
-
-            nextStartIndex = aLine.IndexOf(aOpenCharacter, aCurrentIndex)
-
-            If nextStartIndex >= aCurrentIndex Then
-                Dim source As Identifier? = Nothing
-
-
-                aCurrentIndex = nextStartIndex + 1
-                nextEndIndex = aLine.IndexOf(aCloseCharacter, aCurrentIndex)
-
-                If nextEndIndex >= aCurrentIndex Then
-                    ' Return the selected substring
-                    Return aLine.Substring(aCurrentIndex, nextEndIndex - aCurrentIndex)
-                Else
-                    ' There isn't an end character, so move the cursor to the
-                    ' end of the line. We do this by prepping the nextEndIndex.
-                    nextEndIndex = aLine.Length - 1
-                End If
-
-            Else
-                ' We didn't find a start element.  However, if this is a broken line we want
-                ' to be able to continue, so we need to find the next end so we can move forward
-                ' as usual.
-                nextEndIndex = aLine.IndexOf(aCloseCharacter, aCurrentIndex)
-            End If
-
-            ' Move the index forward past the end of the element.
-            aCurrentIndex = nextEndIndex + 1
-
-        Catch ex As ArgumentOutOfRangeException
-            '
-        End Try
-
-        Return Nothing
-    End Function
-
 
 #End Region
 
+
 #Region "Element Reading"
 
+    ''' <summary>
+    ''' Removes the boundaries from an Element entry.
+    ''' </summary>
+    ''' <param name="aValue">The element to strip boundaries from.</param>
+    ''' <returns>The tidied element entry, or <see langword="Nothing"/> if <paramref name="aValue"/> was  <see langword="Nothing"/>.</returns>
+    ''' <remarks>Format: [Name {ID}] or [@name] or [datestring] with or without square brackets.</remarks>
+    Private Shared Function StripElementBoundaries(ByVal aValue As String) As String
+        If aValue IsNot Nothing Then
+            Return aValue.Trim.TrimStart("["c).TrimEnd("]"c).Trim
+        Else
+            Return Nothing
+        End If
+    End Function
 
+
+    ''' <summary>
+    ''' Removes the boundaries from an Value entry.
+    ''' </summary>
+    ''' <param name="aValue">The value to strip boundaries from.</param>
+    ''' <returns>The tidied value entry, or <see langword="Nothing"/> if <paramref name="aValue"/> was  <see langword="Nothing"/>.</returns>
+    ''' <remarks>Format: (Amount Type {ID} or (Amount) with or without brackets.</remarks>
+    Private Shared Function StripValueBoundaries(ByVal aValue As String) As String
+        If aValue IsNot Nothing Then
+            Return aValue.Trim.TrimStart("("c).TrimEnd(")"c).Trim
+        Else
+            Return Nothing
+        End If
+    End Function
+
+
+    ''' <summary>
+    ''' Removes the boundaries from an Threat entry.
+    ''' </summary>
+    ''' <param name="aValue">The threat entry to strip boundaries from.</param>
+    ''' <returns>The tidied threat entry, or <see langword="Nothing"/> if <paramref name="aValue"/> was  <see langword="Nothing"/>.</returns>
+    Private Shared Function StripThreatBoundaries(ByVal aValue As String) As String
+        If aValue IsNot Nothing Then
+            Return aValue.Trim.TrimStart("<"c).TrimEnd(">"c).Trim
+        Else
+            Return Nothing
+        End If
+    End Function
+
+
+    ''' <summary>
+    ''' Reads a US-formatted date/time string from an element.
+    ''' </summary>
+    ''' <param name="aText">The text to read.</param>
+    ''' <returns>A <see cref="Nullable(Of DateTime)" /> with a value if the string could be read, otherwise <see langword="Nothing"/>.</returns>
     Private Shared Function ReadDateElement(ByVal aText As String) As DateTime?
         Dim rc As DateTime
 
 
-        Try
-            rc = DateTime.Parse(aText, System.Globalization.CultureInfo.CreateSpecificCulture("en-US"))
+        aText = StripElementBoundaries(aText)
 
-            Return rc
+        If String.IsNullOrEmpty(aText) = False Then
+            If DateTime.TryParse( _
+                        aText, _
+                        System.Globalization.CultureInfo.CreateSpecificCulture("en-US"), _
+                        Globalization.DateTimeStyles.None, rc _
+                    ) Then
 
-        Catch ex As FormatException
-            Return Nothing
-        End Try
+                Return rc
+            End If
+        End If
+
+        Return Nothing
 
     End Function
 
 
+    ''' <summary>
+    ''' Reads the components of a value from a provided <paramref name="aText"/>
+    ''' <see cref="String" /> and generates a <see cref="WolfLight.SWTORCombatLog.Identifier"/>
+    ''' object.
+    ''' </summary>
+    ''' <param name="aText">The string to parse for value data.</param>
+    ''' <returns>
+    ''' A <see cref="Nullable(Of Wolflight.SWTORCombatLog.Identifier)"/> which has a value if
+    ''' the text could be parsed.
+    ''' </returns>
+    ''' <remarks>Format: [Name {ID}] or [@name] or [datestring]</remarks>
     Private Shared Function ReadIdentifierElement(ByVal aText As String) As Identifier?
-        ' Text: Elite Tastybobble {846623953387520}
-        ' Player: @Idrurrez
-
+        ' Text: [Elite Tastybobble {846623953387520}]
+        ' Player: [@Idrurrez]
+        aText = StripElementBoundaries(aText)
 
         If String.IsNullOrEmpty(aText) = False Then
             If aText.Chars(0) = CG_PLAYERIDENTIFIER Then
@@ -321,7 +326,6 @@
         End If
 
         Return Nothing
-
     End Function
 
 
@@ -335,16 +339,10 @@
     ''' A <see cref="Nullable(Of Wolflight.SWTORCombatLog.ValueData)"/> which has a value if
     ''' the text could be parsed.
     ''' </returns>
-    ''' <remarks>Format: 250* energy {836045448940874}</remarks>
+    ''' <remarks>Format: (250* energy {836045448940874})</remarks>
     Private Shared Function ReadValueData(ByVal aText As String) As ValueData?
-        ' 250* energy {836045448940874}
-
-        ' Since we'll be working with spaces as a split character, make sure that
-        ' there's not leading or trailing spaces, before we start trying to
-        ' work with the text.
-        If String.IsNullOrEmpty(aText) = False Then
-            aText = aText.Trim
-        End If
+        ' (250* energy {836045448940874})
+        aText = StripValueBoundaries(aText)
 
         ' Now that we've trimmed the text, checkt that we have data.
         If String.IsNullOrEmpty(aText) = False Then
@@ -394,6 +392,26 @@
         Return Nothing
     End Function
 
+
+    ''' <summary>
+    ''' Reads an integer from a threat entry.
+    ''' </summary>
+    ''' <param name="aText">The text to read.</param>
+    ''' <returns>A <see cref="Nullable(Of Integer)" /> with a value if the string could be read, otherwise <see langword="Nothing"/>.</returns>
+    Private Shared Function ReadThreatData(ByVal aText As String) As Integer?
+        aText = StripThreatBoundaries(aText)
+
+        If String.IsNullOrEmpty(aText) = False Then
+            Dim threatvalue As Integer = 0
+
+
+            If Integer.TryParse(aText, threatvalue) Then
+                Return threatvalue
+            End If
+        End If
+
+        Return Nothing
+    End Function
 
 #End Region
 
